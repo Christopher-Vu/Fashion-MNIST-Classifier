@@ -121,14 +121,14 @@ for t in range(epochs):
     accuracy, avg_loss = test(test_dataloader, model)
     
     accuracies.append(accuracy)
-    avg_losses.append(avg_loss)
-    epoch_ind = epoch_ind[:len(accuracies)]
+    avg_losses.append(avg_loss * 1000)
+    epoch_ind_con = epoch_ind[:len(accuracies)]
     fig, ax = plt.subplots(figsize=(10, 6))
     
-    ax.plot(epoch_ind, accuracies, color='skyblue', linewidth=2, label='Accuracy (%)')
-    ax.plot(epoch_ind, avg_losses, color='salmon', linewidth=2, label='Average Loss')
-    ax.fill_between(epoch_ind, accuracies, color='skyblue', alpha=0.3)
-    ax.fill_between(epoch_ind, avg_losses, color='salmon', alpha=0.3)
+    ax.plot(epoch_ind_con, accuracies, color='skyblue', linewidth=2, label='Accuracy (%)')
+    ax.plot(epoch_ind_con, avg_losses, color='salmon', linewidth=2, label='Average Loss (magnified by 1000x)')
+    ax.fill_between(epoch_ind_con, accuracies, color='skyblue', alpha=0.3)
+    ax.fill_between(epoch_ind_con, avg_losses, color='salmon', alpha=0.3)
     
     plt.style.use('dark_background')
     
