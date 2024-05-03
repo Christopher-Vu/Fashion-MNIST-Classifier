@@ -61,8 +61,8 @@ print("Using {} device".format(device))
 
 # Define model
 class NeuralNetwork(nn.Module):
-    def __init__(self):
-        super(NeuralNetwork, self, layer1size, layer2size).__init__()
+    def __init__(self, layer1size, layer2size):
+        super(NeuralNetwork, self).__init__()
         self.flatten = nn.Flatten()
         self.layer1size, self.layer2size = layer1size, layer2size
         self.linear_relu_stack = nn.Sequential(
@@ -112,8 +112,8 @@ def test(dataloader, model):
     print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
     return 100*correct, test_loss # accuracy and avg loss
 
-for model_num, layer1size, layer2size in zip([i+1 for i in range(layer1sizes)], layer1sizes, layer2sizes):
-    model = NeuralNetwork().to(device)
+for model_num, layer1size, layer2size in zip([i+1 for i in range(len(layer1sizes))], layer1sizes, layer2sizes):
+    model = NeuralNetwork(layer1size, layer2size).to(device)
     print(model)
     
     loss_fn = nn.CrossEntropyLoss()
@@ -128,12 +128,12 @@ for model_num, layer1size, layer2size in zip([i+1 for i in range(layer1sizes)], 
         train(train_dataloader, model, loss_fn, optimizer)
         accuracy, avg_loss = test(test_dataloader, model)
         
-        if show_all_graphs or show_last_graph and t == epochs-1:
-            accuracies.append(accuracy)
-            avg_losses.append(avg_loss * 1000)
-            epoch_ind_con = epoch_ind[:len(accuracies)]
+        accuracies.append(accuracy)
+        avg_losses.append(avg_loss * 1000)
+        epoch_ind_con = epoch_ind[:len(accuracies)]
+        
+        if show_all_graphs or show_final_graph and t == epochs-1:
             fig, ax = plt.subplots(figsize=(10, 6))
-            
             ax.plot(epoch_ind_con, accuracies, color='skyblue', linewidth=2, label='Accuracy (%)')
             ax.plot(epoch_ind_con, avg_losses, color='salmon', linewidth=2, label='Average Loss (magnified by 1000x)')
             ax.fill_between(epoch_ind_con, accuracies, color='skyblue', alpha=0.3)
@@ -141,7 +141,7 @@ for model_num, layer1size, layer2size in zip([i+1 for i in range(layer1sizes)], 
             
             plt.style.use('dark_background')
             
-            plt.title('Accuracy and Average Loss Over Epochs')
+            plt.title(f'Accuracy and Average Loss Over Epochs: Model {model_num}')
             plt.xlabel('Epoch')
             plt.ylabel('Values')
             
