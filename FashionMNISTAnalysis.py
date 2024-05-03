@@ -10,6 +10,12 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor, Lambda, Compose
 import matplotlib.pyplot as plt
 
+epochs = 100
+al_graph_step = 3 # show accuracy/loss graph every n epochs
+wbstd_graph_step = 1 # show weight+bias standard deviation graph every n epochs
+show_final_graphs = True
+
+# Download training data from open datasets.
 training_data = datasets.FashionMNIST(
     root="data",
     train=True,
@@ -17,6 +23,7 @@ training_data = datasets.FashionMNIST(
     transform=ToTensor(),
 )
 
+# Download test data from open datasets.
 test_data = datasets.FashionMNIST(
     root="data",
     train=False,
@@ -35,10 +42,23 @@ for X, y in test_dataloader:
     print("Shape of y: ", y.shape, y.dtype)
     break
 
+# Display sample data
+figure = plt.figure(figsize=(10, 8))
+cols, rows = 5, 5
+for i in range(1, cols * rows + 1):
+    idx = torch.randint(len(test_data), size=(1,)).item()
+    img, label = test_data[idx]
+    figure.add_subplot(rows, cols, i)
+    plt.title(label)
+    plt.axis("off")
+    plt.imshow(img.squeeze(), cmap="gray")
+plt.show()
 
+# Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print("Using {} device".format(device))
 
+# Define model
 class NeuralNetwork(nn.Module):
     def __init__(self):
         super(NeuralNetwork, self).__init__()
@@ -69,9 +89,11 @@ def train(dataloader, model, loss_fn, optimizer):
     for batch, (X, y) in enumerate(dataloader):
         X, y = X.to(device), y.to(device)
 
+        # Compute prediction error
         pred = model(X)
         loss = loss_fn(pred, y)
 
+        # Backpropagation
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -95,12 +117,53 @@ def test(dataloader, model):
     print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
     return 100*correct, test_loss # accuracy and avg loss
 
+accuracies, avg_losses, epoch_ind = [], [], [i+1 for i in range(epochs)]
 
 for t in range(epochs):
     print(f"Epoch {t+1}\n-------------------------------")
     train(train_dataloader, model, loss_fn, optimizer)
     accuracy, avg_loss = test(test_dataloader, model)
     
+    accuracies.append(accuracy)
+    avg_losses.append(avg_loss * 1000)
+    epoch_ind_con = epoch_ind[:len(accuracies)]
+    
+    if show_final_graphs or (t+1)%al_graph_step==0:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        ax.plot(epoch_ind_con, accuracies, color='skyblue', linewidth=2, label='Accuracy (%)')
+        ax.plot(epoch_ind_con, avg_losses, color='salmon', linewidth=2, label='Average Loss (magnified by 1000x)')
+        ax.fill_between(epoch_ind_con, accuracies, color='skyblue', alpha=0.3)
+        ax.fill_between(epoch_ind_con, avg_losses, color='salmon', alpha=0.3)
+        
+        plt.style.use('dark_background')
+        
+        plt.title('Accuracy and Average Loss Over Epochs')
+        plt.xlabel('Epoch')
+        plt.ylabel('Values')
+        
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.show()
+    
+    if show_final_graphs or (t+1)%wbstd_graph_step==0:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        ax.plot(epoch_ind_con, accuracies, color='skyblue', linewidth=2, label='Accuracy (%)')
+        ax.plot(epoch_ind_con, avg_losses, color='salmon', linewidth=2, label='Average Loss (magnified by 1000x)')
+        ax.fill_between(epoch_ind_con, accuracies, color='skyblue', alpha=0.3)
+        ax.fill_between(epoch_ind_con, avg_losses, color='salmon', alpha=0.3)
+        
+        plt.style.use('dark_background')
+        
+        plt.title('Accuracy and Average Loss Over Epochs')
+        plt.xlabel('Epoch')
+        plt.ylabel('Values')
+        
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.show()
+
 print("Done!")  
 
 model = NeuralNetwork()
