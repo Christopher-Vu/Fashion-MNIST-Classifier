@@ -10,11 +10,10 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor, Lambda, Compose
 import matplotlib.pyplot as plt
 
-epochs = 3
-layer1sizes, layer2sizes = [256, 512, 1024], [256, 512, 1024]
-show_all_graphs = False
-show_final_graph = True
-
+epochs = 100
+al_graph_step = 3 # show accuracy/loss graph every n epochs
+wbstd_graph_step = 1 # show weight+bias standard deviation graph every n epochs
+show_final_graphs = True
 
 # Download training data from open datasets.
 training_data = datasets.FashionMNIST(
@@ -61,16 +60,15 @@ print("Using {} device".format(device))
 
 # Define model
 class NeuralNetwork(nn.Module):
-    def __init__(self, layer1size, layer2size):
+    def __init__(self):
         super(NeuralNetwork, self).__init__()
         self.flatten = nn.Flatten()
-        self.layer1size, self.layer2size = layer1size, layer2size
         self.linear_relu_stack = nn.Sequential(
-            nn.Linear(28*28, layer1size),
+            nn.Linear(28*28, 512),
             nn.ReLU(),
-            nn.Linear(layer1size, layer2size),
+            nn.Linear(512, 512),
             nn.ReLU(),
-            nn.Linear(layer2size, 10),
+            nn.Linear(512, 10),
             nn.ReLU()
         )
 
@@ -78,6 +76,13 @@ class NeuralNetwork(nn.Module):
         x = self.flatten(x)
         logits = self.linear_relu_stack(x)
         return logits
+
+model = NeuralNetwork().to(device)
+print(model)
+
+loss_fn = nn.CrossEntropyLoss()
+learning_rate = 1e-3
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
 def train(dataloader, model, loss_fn, optimizer):
     size = len(dataloader.dataset)
@@ -112,41 +117,76 @@ def test(dataloader, model):
     print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
     return 100*correct, test_loss # accuracy and avg loss
 
-for model_num, layer1size, layer2size in zip([i+1 for i in range(len(layer1sizes))], layer1sizes, layer2sizes):
-    model = NeuralNetwork(layer1size, layer2size).to(device)
-    print(model)
+accuracies, avg_losses, epoch_ind = [], [], [i+1 for i in range(epochs)]
+
+for t in range(epochs):
+    print(f"Epoch {t+1}\n-------------------------------")
+    train(train_dataloader, model, loss_fn, optimizer)
+    accuracy, avg_loss = test(test_dataloader, model)
     
-    loss_fn = nn.CrossEntropyLoss()
-    learning_rate = 1e-3
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    accuracies.append(accuracy)
+    avg_losses.append(avg_loss * 1000)
+    epoch_ind_con = epoch_ind[:len(accuracies)]
     
-    
-    accuracies, avg_losses, epoch_ind = [], [], [i+1 for i in range(epochs)]
-    
-    for t in range(epochs):
-        print(f"Epoch {t+1} \n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer)
-        accuracy, avg_loss = test(test_dataloader, model)
+    if show_final_graphs or (t+1)%al_graph_step==0:
+        fig, ax = plt.subplots(figsize=(10, 6))
         
-        accuracies.append(accuracy)
-        avg_losses.append(avg_loss * 1000)
-        epoch_ind_con = epoch_ind[:len(accuracies)]
+        ax.plot(epoch_ind_con, accuracies, color='skyblue', linewidth=2, label='Accuracy (%)')
+        ax.plot(epoch_ind_con, avg_losses, color='salmon', linewidth=2, label='Average Loss (magnified by 1000x)')
+        ax.fill_between(epoch_ind_con, accuracies, color='skyblue', alpha=0.3)
+        ax.fill_between(epoch_ind_con, avg_losses, color='salmon', alpha=0.3)
         
-        if show_all_graphs or show_final_graph and t == epochs-1:
-            fig, ax = plt.subplots(figsize=(10, 6))
-            ax.plot(epoch_ind_con, accuracies, color='skyblue', linewidth=2, label='Accuracy (%)')
-            ax.plot(epoch_ind_con, avg_losses, color='salmon', linewidth=2, label='Average Loss (magnified by 1000x)')
-            ax.fill_between(epoch_ind_con, accuracies, color='skyblue', alpha=0.3)
-            ax.fill_between(epoch_ind_con, avg_losses, color='salmon', alpha=0.3)
-            
-            plt.style.use('dark_background')
-            
-            plt.title(f'Accuracy and Average Loss Over Epochs: Model {model_num}')
-            plt.xlabel('Epoch')
-            plt.ylabel('Values')
-            
-            plt.grid(True, alpha=0.3)
-            plt.legend()
-            plt.show()
+        plt.style.use('dark_background')
+        
+        plt.title('Accuracy and Average Loss Over Epochs')
+        plt.xlabel('Epoch')
+        plt.ylabel('Values')
+        
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.show()
     
-    print(f"Finished with model {model_num}!")
+    if show_final_graphs or (t+1)%wbstd_graph_step==0:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        ax.plot(epoch_ind_con, accuracies, color='skyblue', linewidth=2, label='Accuracy (%)')
+        ax.plot(epoch_ind_con, avg_losses, color='salmon', linewidth=2, label='Average Loss (magnified by 1000x)')
+        ax.fill_between(epoch_ind_con, accuracies, color='skyblue', alpha=0.3)
+        ax.fill_between(epoch_ind_con, avg_losses, color='salmon', alpha=0.3)
+        
+        plt.style.use('dark_background')
+        
+        plt.title('Accuracy and Average Loss Over Epochs')
+        plt.xlabel('Epoch')
+        plt.ylabel('Values')
+        
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.show()
+
+print("Done!")  
+
+model = NeuralNetwork()
+torch.save(model.state_dict(), "data/model.pth")
+
+model.load_state_dict(torch.load("data/model.pth"))
+
+classes = [
+    "T-shirt/top",
+    "Trouser",
+    "Pullover",
+    "Dress",
+    "Coat",
+    "Sandal",
+    "Shirt",
+    "Sneaker",
+    "Bag",
+    "Ankle boot",
+]
+
+model.eval()
+x, y = test_data[0][0], test_data[0][1]
+with torch.no_grad():
+    pred = model(x)
+    predicted, actual = classes[pred[0].argmax(0)], classes[y]
+    print(f'Predicted: "{predicted}", Actual: "{actual}"')
